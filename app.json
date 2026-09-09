@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "worlddex",
+    "name": "WorldDex",
     "slug": "worlddex",
+    "description": "Мобильный справочник стран мира: столица, регион, уровень дохода, население и флаг по данным World Bank Open Data.",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
