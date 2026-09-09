@@ -115,7 +115,7 @@ worlddex/
 │   ├── backlog.md                     product backlog, 9 историй
 │   ├── environment.md                 версии инструментов и готовность среды
 │   └── git-workflow.md                ветка, pull request и тег спринта
-├── REPORT-00.md                       отчёт о практической работе № 0
+├── reports/                       отчёт о практической работе № 0
 └── CHANGELOG.md
 ```
 
@@ -125,7 +125,7 @@ worlddex/
 - [Product backlog](docs/backlog.md) — 9 историй, критерии приёмки US-1.
 - [Среда разработки](docs/environment.md) — версии, проверки, чек-лист готовности.
 - [Git-процесс](docs/git-workflow.md) — ветка, pull request, тег `sprint-0`.
-- [Отчёт № 0](REPORT-00.md) — отчёт о практической работе.
+- [Отчёт № 0](reports/REPORT-00.md) — отчёт о практической работе.
 
 ## Дальше
 
