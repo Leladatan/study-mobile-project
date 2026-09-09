@@ -7,17 +7,25 @@ export type TopicCardProps = {
   topic: Topic;
   onPress: (topic: Topic) => void;
   featured?: boolean;
+  selected?: boolean;
 };
 
-export function TopicCard({ topic, onPress, featured = false }: TopicCardProps) {
+export function TopicCard({
+  topic,
+  onPress,
+  featured = false,
+  selected = false,
+}: TopicCardProps) {
   return (
     <Pressable
       onPress={() => onPress(topic)}
       accessibilityRole="button"
+      accessibilityState={{ selected }}
       accessibilityLabel={`${topic.title}, столица ${topic.capital}`}
       style={({ pressed }) => [
         styles.card,
         featured && styles.cardFeatured,
+        selected && styles.cardSelected,
         pressed && styles.cardPressed,
       ]}>
       <View style={styles.row}>
@@ -41,6 +49,10 @@ export function TopicCard({ topic, onPress, featured = false }: TopicCardProps) 
           <Text style={styles.capital} numberOfLines={1}>
             {topic.capital}
           </Text>
+        </View>
+
+        <View style={[styles.mark, selected && styles.markActive]}>
+          <Text style={[styles.markIcon, selected && styles.markIconActive]}>✓</Text>
         </View>
       </View>
 
@@ -79,8 +91,33 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
     borderWidth: 2,
   },
+  cardSelected: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSoft,
+  },
   cardPressed: {
     opacity: 0.6,
+  },
+  mark: {
+    width: 24,
+    height: 24,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  markActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  markIcon: {
+    fontSize: 13,
+    lineHeight: 16,
+    color: 'transparent',
+  },
+  markIconActive: {
+    color: colors.surface,
   },
   row: {
     flexDirection: 'row',

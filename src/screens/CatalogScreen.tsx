@@ -1,60 +1,123 @@
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback } from 'react';
+import { FlatList, type ListRenderItem, Pressable, StyleSheet, Text, View } from 'react-native';
+import { RegionFilter } from '../components/RegionFilter';
+import { SearchField } from '../components/SearchField';
 import { TopicCard } from '../components/TopicCard';
-import { TOPICS } from '../data/topics';
+import { useCatalog } from '../hooks/useCatalog';
 import { colors, radius, spacing } from '../theme';
 import type { Topic } from '../types/topic';
 
 export function CatalogScreen() {
-  const [selected, setSelected] = useState<Topic | null>(null);
+  const {
+    query,
+    setQuery,
+    appliedQuery,
+    regionId,
+    setRegionId,
+    regions,
+    visibleTopics,
+    totalCount,
+    selectedCount,
+    isSelected,
+    toggleSelection,
+    clearSelection,
+    resetFilters,
+    filtersActive,
+  } = useCatalog();
 
-  const handlePress = (topic: Topic) => {
-    setSelected(topic);
-  };
+  const renderItem = useCallback<ListRenderItem<Topic>>(
+    ({ item, index }) => (
+      <TopicCard
+        topic={item}
+        onPress={toggleSelection}
+        featured={index === 0 && !filtersActive}
+        selected={isSelected(item)}
+      />
+    ),
+    [toggleSelection, isSelected, filtersActive],
+  );
 
-  return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
+  const keyExtractor = useCallback((item: Topic) => item.id, []);
+
+  const header = (
+    <View style={styles.header}>
+      <View>
         <Text style={styles.brand}>WorldDex</Text>
         <Text style={styles.tagline}>Справочник стран мира</Text>
       </View>
 
-      <View style={styles.selection}>
-        <Text style={styles.selectionLabel}>Выбранная карточка</Text>
-        <Text style={styles.selectionValue}>
-          {selected ? `${selected.title} · ${selected.capital}` : 'Нажмите на любую карточку'}
+      <SearchField value={query} onChange={setQuery} />
+
+      <RegionFilter regions={regions} selected={regionId} onSelect={setRegionId} />
+
+      <View style={styles.statusRow}>
+        <Text style={styles.counter}>
+          {visibleTopics.length === totalCount
+            ? `${totalCount} карточек`
+            : `${visibleTopics.length} из ${totalCount}`}
         </Text>
+
+        <View style={styles.actions}>
+          <Text style={styles.selectedCount}>Выбрано: {selectedCount}</Text>
+          {selectedCount > 0 ? (
+            <Pressable onPress={clearSelection} hitSlop={8} accessibilityRole="button">
+              <Text style={styles.action}>снять</Text>
+            </Pressable>
+          ) : null}
+          {filtersActive ? (
+            <Pressable onPress={resetFilters} hitSlop={8} accessibilityRole="button">
+              <Text style={styles.action}>сбросить фильтры</Text>
+            </Pressable>
+          ) : null}
+        </View>
       </View>
-
-      <Text style={styles.counter}>{TOPICS.length} карточек</Text>
-
-      <View style={styles.list}>
-        {TOPICS.map((topic, index) => (
-          <TopicCard
-            key={topic.id}
-            topic={topic}
-            onPress={handlePress}
-            featured={index === 0}
-          />
-        ))}
-      </View>
-
-      <Text style={styles.footnote}>
-        Sprint 1 — статическая витрина на локальных fixtures. Данные подготовлены по World Bank
-        Open Data, флаги — flagcdn.com.
-      </Text>
-    </ScrollView>
+    </View>
   );
+
+  const empty = (
+    <View style={styles.empty}>
+      <Text style={styles.emptyIcon}>⌕</Text>
+      <Text style={styles.emptyTitle}>Ничего не найдено</Text>
+      <Text style={styles.emptyText}>
+        {appliedQuery.trim().length > 0
+          ? `По запросу «${appliedQuery.trim()}» нет совпадений`
+          : 'В выбранном регионе нет карточек'}
+        {regionId !== null && appliedQuery.trim().length > 0 ? ' в этом регионе' : ''}.
+        Измените запрос или сбросьте фильтры.
+      </Text>
+      <Pressable onPress={resetFilters} accessibilityRole="button" style={styles.emptyButton}>
+        <Text style={styles.emptyButtonText}>Сбросить фильтры</Text>
+      </Pressable>
+    </View>
+  );
+
+  return (
+    <FlatList
+      data={visibleTopics}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      ListHeaderComponent={header}
+      ListEmptyComponent={empty}
+      ItemSeparatorComponent={Separator}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+    />
+  );
+}
+
+function Separator() {
+  return <View style={styles.separator} />;
 }
 
 const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
-    gap: spacing.lg,
   },
   header: {
-    gap: 2,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
   },
   brand: {
     fontSize: 32,
@@ -66,22 +129,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.textMuted,
   },
-  selection: {
-    backgroundColor: colors.accentSoft,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    gap: 2,
-  },
-  selectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    color: colors.accent,
-    textTransform: 'uppercase',
-  },
-  selectionValue: {
-    fontSize: 15,
-    color: colors.text,
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
   counter: {
     fontSize: 12,
@@ -90,13 +143,54 @@ const styles = StyleSheet.create({
     color: colors.textFaint,
     textTransform: 'uppercase',
   },
-  list: {
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.md,
   },
-  footnote: {
-    fontSize: 12,
-    lineHeight: 18,
+  selectedCount: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  action: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.accent,
+  },
+  separator: {
+    height: spacing.md,
+  },
+  empty: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xxl,
+  },
+  emptyIcon: {
+    fontSize: 34,
     color: colors.textFaint,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  emptyText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textMuted,
     textAlign: 'center',
+  },
+  emptyButton: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.accent,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+  },
+  emptyButtonText: {
+    color: colors.surface,
+    fontWeight: '600',
+    fontSize: 15,
   },
 });
