@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, radius, spacing } from '../theme';
 
@@ -7,7 +8,7 @@ export type SearchFieldProps = {
   placeholder?: string;
 };
 
-export function SearchField({ value, onChange, placeholder }: SearchFieldProps) {
+function SearchFieldView({ value, onChange, placeholder }: SearchFieldProps) {
   return (
     <View style={styles.wrapper}>
       <Text style={styles.icon}>⌕</Text>
@@ -35,6 +36,8 @@ export function SearchField({ value, onChange, placeholder }: SearchFieldProps) 
     </View>
   );
 }
+
+export const SearchField = memo(SearchFieldView);
 
 const styles = StyleSheet.create({
   wrapper: {

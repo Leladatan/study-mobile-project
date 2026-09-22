@@ -12,8 +12,8 @@ export function CatalogScreen() {
     query,
     setQuery,
     appliedQuery,
-    regionId,
-    setRegionId,
+    regionCode,
+    setRegionCode,
     regions,
     visibleTopics,
     totalCount,
@@ -31,7 +31,7 @@ export function CatalogScreen() {
         topic={item}
         onPress={toggleSelection}
         featured={index === 0 && !filtersActive}
-        selected={isSelected(item)}
+        selected={isSelected(item.id)}
       />
     ),
     [toggleSelection, isSelected, filtersActive],
@@ -48,7 +48,7 @@ export function CatalogScreen() {
 
       <SearchField value={query} onChange={setQuery} />
 
-      <RegionFilter regions={regions} selected={regionId} onSelect={setRegionId} />
+      <RegionFilter regions={regions} selected={regionCode} onSelect={setRegionCode} />
 
       <View style={styles.statusRow}>
         <Text style={styles.counter}>
@@ -82,7 +82,7 @@ export function CatalogScreen() {
         {appliedQuery.trim().length > 0
           ? `По запросу «${appliedQuery.trim()}» нет совпадений`
           : 'В выбранном регионе нет карточек'}
-        {regionId !== null && appliedQuery.trim().length > 0 ? ' в этом регионе' : ''}.
+        {regionCode !== null && appliedQuery.trim().length > 0 ? ' в этом регионе' : ''}.
         Измените запрос или сбросьте фильтры.
       </Text>
       <Pressable onPress={resetFilters} accessibilityRole="button" style={styles.emptyButton}>

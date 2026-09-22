@@ -1,120 +1,72 @@
-# Git-процесс Sprint 0
+# Git-процесс
 
-> Публикация выполняется вручную. Ниже — точная последовательность команд под требования
-> задания: ветка `feature/sprint-0-project-concept`, pull request «Sprint 0: концепция мобильного
-> справочника», тег `sprint-0`.
+Каждый спринт делается в отдельной ветке и попадает в `main` через pull request.
 
-## Исходное состояние
+## Шаги
 
-`create-expo-app` уже инициализировал локальный репозиторий:
+1. Создать ветку от свежего `main`:
 
-- ветка `main`;
-- один коммит `Initial commit` — чистый шаблон Expo без материалов спринта;
-- файлы Sprint 0 (документация, резервные данные, экран-заглушка) **ещё не закоммичены**.
+   ```bash
+   git checkout main
+   git pull
+   git checkout -b feature/sprint-N-name
+   ```
 
-Это удобно: `main` содержит только шаблон, а весь инкремент спринта поедет в pull request и будет
-виден в diff одним куском.
+2. Закоммитить и запушить изменения:
 
-Проверить состояние:
+   ```bash
+   git add -A
+   git commit -m "Sprint N: описание"
+   git push -u origin feature/sprint-N-name
+   ```
 
-```bash
-git log --oneline
-git status
-```
+3. Открыть на GitHub pull request в `main` и влить его.
 
-## 1. Создать удалённый репозиторий
+4. Обновить `main` у себя:
 
-Создайте пустой репозиторий `worlddex` на GitHub **без** README, .gitignore и лицензии — они уже
-есть локально.
+   ```bash
+   git checkout main
+   git pull
+   ```
 
-## 2. Привязать remote и выложить main
+5. Поставить тег:
 
-```bash
-git remote add origin https://github.com/<ваш-логин>/worlddex.git
-git push -u origin main
-```
+   ```bash
+   git tag -a sprint-N -m "Sprint N: описание"
+   git push origin sprint-N
+   ```
 
-## 3. Ветка спринта и коммит
+Тег ставится только после шагов 3 и 4. Перед этим стоит выполнить `git log --oneline -1`:
+верхний коммит должен быть слиянием pull request.
 
-```bash
-git checkout -b feature/sprint-0-project-concept
+## Спринты
 
-git add .
-git commit -m "Sprint 0: концепция продукта, backlog и подготовка проекта
+| Спринт | Ветка | Pull request | Тег |
+| --- | --- | --- | --- |
+| 0 | `feature/sprint-0-project-concept` | #1 | `sprint-0` |
+| 1 | `feature/sprint-1-basic-ui` | #2 | `sprint-1` |
+| 2 | `feature/sprint-2-interactive-catalog` | #3 | `sprint-2` |
 
-- README с описанием продукта, аудиторией и основным сценарием
-- docs/product-concept.md: проблема, границы MVP, проверенный кандидат открытого API
-- docs/backlog.md: 9 пользовательских историй, 6 критериев приёмки для US-1
-- docs/environment.md: версии инструментов и готовность среды
-- assets/data/countries.fallback.json: резервный источник данных
-- App.tsx: экран-заглушка Sprint 0"
+## Доступ
 
-git push -u origin feature/sprint-0-project-concept
-```
+Репозиторий публичный: https://github.com/Leladatan/study-mobile-project. Если преподавателю
+нужен доступ на запись: Settings → Collaborators → Add people.
 
-## 4. Pull request
+## Если что-то пошло не так
 
-Создать pull request `feature/sprint-0-project-concept` → `main`.
+- **Тег поставлен не на тот коммит.** Удалить его и поставить заново:
 
-**Заголовок:**
+  ```bash
+  git tag -d sprint-N
+  git push origin --delete sprint-N
+  ```
 
-```
-Sprint 0: концепция мобильного справочника
-```
+- **Нужно перенести существующий тег** на текущий коммит:
 
-**Описание** (можно вставить как есть):
+  ```bash
+  git tag -f -a sprint-N -m "Sprint N: описание"
+  git push origin sprint-N --force
+  ```
 
-```markdown
-## Цель спринта
-Подготовить основу мобильного справочника, на которой будут выполняться последующие практические работы.
-
-## Что сделано
-- Зафиксированы тематика (страны мира) и рабочее название — WorldDex.
-- Сформулированы проблема, идея продукта и границы MVP.
-- Определены целевая аудитория и основной пользовательский сценарий.
-- Проверен кандидат открытого API: World Bank Indicators API v2, без ключа. Задокументированы
-  способ доступа, используемые поля, 7 ограничений и резервный источник.
-- Составлен product backlog из 9 историй; для US-1 определено 6 проверяемых критериев приёмки.
-- Создан проект React Native / Expo с TypeScript, среда проверена.
-
-## Проверки
-- `npm run typecheck` — без ошибок.
-- `npm run doctor` — 21/21 проверок пройдено.
-- 6 HTTP-запросов к API-кандидату — все 200.
-
-## Границы
-Сетевые запросы, навигация, глобальное состояние и полноценный UI в Sprint 0 сознательно не
-реализованы — см. docs/product-concept.md, раздел «Границы MVP».
-```
-
-После проверки — влить pull request в `main`.
-
-## 5. Тег спринта
-
-```bash
-git checkout main
-git pull origin main
-git tag -a sprint-0 -m "Sprint 0: концепция мобильного справочника"
-git push origin sprint-0
-```
-
-## 6. Доступ преподавателя
-
-GitHub → репозиторий → **Settings** → **Collaborators** → **Add people** → добавить
-преподавателя (Саенко Я.Д.) с правом `Read`.
-
-## 7. Заполнить отчёт
-
-Вставить URL созданного pull request в [`reports/REPORT-00.md`](../reports/REPORT-00.md), в строку
-«Ссылка на реквест с изменениями».
-
-## Чек-лист публикации
-
-- [ ] Удалённый репозиторий создан.
-- [ ] `main` выложен.
-- [ ] Ветка `feature/sprint-0-project-concept` создана и запушена.
-- [ ] Pull request «Sprint 0: концепция мобильного справочника» открыт.
-- [ ] Pull request влит в `main`.
-- [ ] Тег `sprint-0` создан и запушен.
-- [ ] Преподавателю выдан доступ к репозиторию.
-- [ ] URL pull request вставлен в отчёт.
+- **`Deletion of directory ... failed` при смене ветки.** Папку держит OneDrive. Ответить `n`
+  и на время работы с ветками поставить синхронизацию OneDrive на паузу.

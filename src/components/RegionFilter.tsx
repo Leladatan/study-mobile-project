@@ -1,12 +1,13 @@
+import { memo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { colors, radius, spacing } from '../theme';
 import type { RegionOption } from '../hooks/useCatalog';
-import type { RegionId } from '../types/topic';
+import type { RegionCode } from '../types/topic';
 
 export type RegionFilterProps = {
   regions: RegionOption[];
-  selected: RegionId | null;
-  onSelect: (id: RegionId | null) => void;
+  selected: RegionCode | null;
+  onSelect: (code: RegionCode | null) => void;
 };
 
 function Chip({
@@ -31,7 +32,7 @@ function Chip({
   );
 }
 
-export function RegionFilter({ regions, selected, onSelect }: RegionFilterProps) {
+function RegionFilterView({ regions, selected, onSelect }: RegionFilterProps) {
   return (
     <ScrollView
       horizontal
@@ -41,15 +42,17 @@ export function RegionFilter({ regions, selected, onSelect }: RegionFilterProps)
       <Chip label="Все регионы" active={selected === null} onPress={() => onSelect(null)} />
       {regions.map((region) => (
         <Chip
-          key={region.id}
+          key={region.code}
           label={region.label}
-          active={selected === region.id}
-          onPress={() => onSelect(selected === region.id ? null : region.id)}
+          active={selected === region.code}
+          onPress={() => onSelect(selected === region.code ? null : region.code)}
         />
       ))}
     </ScrollView>
   );
 }
+
+export const RegionFilter = memo(RegionFilterView);
 
 const styles = StyleSheet.create({
   row: {

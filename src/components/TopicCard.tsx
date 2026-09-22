@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatPopulation } from '../lib/format';
 import { colors, radius, spacing } from '../theme';
@@ -5,12 +6,12 @@ import { INCOME_NAMES, type Topic } from '../types/topic';
 
 export type TopicCardProps = {
   topic: Topic;
-  onPress: (topic: Topic) => void;
+  onPress: (id: Topic['id']) => void;
   featured?: boolean;
   selected?: boolean;
 };
 
-export function TopicCard({
+function TopicCardView({
   topic,
   onPress,
   featured = false,
@@ -18,7 +19,7 @@ export function TopicCard({
 }: TopicCardProps) {
   return (
     <Pressable
-      onPress={() => onPress(topic)}
+      onPress={() => onPress(topic.id)}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       accessibilityLabel={`${topic.title}, столица ${topic.capital}`}
@@ -77,6 +78,8 @@ export function TopicCard({
     </Pressable>
   );
 }
+
+export const TopicCard = memo(TopicCardView);
 
 const styles = StyleSheet.create({
   card: {
