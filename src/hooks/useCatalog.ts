@@ -1,79 +1,82 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TOPICS } from '../data/topics';
-import { REGION_NAMES, type RegionId, type Topic } from '../types/topic';
+import { REGION_NAMES, RegionCode, type Topic } from '../types/topic';
 
 const SEARCH_DELAY = 250;
 
 export type RegionOption = {
-  id: RegionId;
+  code: RegionCode;
   label: string;
 };
+
+const REGION_OPTIONS: RegionOption[] = Object.values(RegionCode)
+  .filter((code) => TOPICS.some((topic) => topic.regionCode === code))
+  .map((code) => ({ code, label: REGION_NAMES[code] }))
+  .sort((a, b) => a.label.localeCompare(b.label, 'ru'));
+
+const SEARCH_INDEX = TOPICS.map((topic) => ({
+  topic,
+  title: topic.title.toLowerCase(),
+  capital: topic.capital.toLowerCase(),
+}));
+
+const EMPTY_SELECTION: ReadonlySet<string> = new Set();
 
 export function useCatalog() {
   const [query, setQuery] = useState('');
   const [appliedQuery, setAppliedQuery] = useState('');
-  const [regionId, setRegionId] = useState<RegionId | null>(null);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [regionCode, setRegionCode] = useState<RegionCode | null>(null);
+  const [selectedIds, setSelectedIds] = useState(EMPTY_SELECTION);
 
   useEffect(() => {
     const timer = setTimeout(() => setAppliedQuery(query), SEARCH_DELAY);
     return () => clearTimeout(timer);
   }, [query]);
 
-  const regions = useMemo<RegionOption[]>(() => {
-    const present = new Set<RegionId>();
-    for (const topic of TOPICS) present.add(topic.regionId);
-    return [...present]
-      .map((id) => ({ id, label: REGION_NAMES[id] }))
-      .sort((a, b) => a.label.localeCompare(b.label, 'ru'));
-  }, []);
-
   const visibleTopics = useMemo<Topic[]>(() => {
     const needle = appliedQuery.trim().toLowerCase();
-    return TOPICS.filter((topic) => {
-      if (regionId !== null && topic.regionId !== regionId) return false;
-      if (needle.length === 0) return true;
-      return (
-        topic.title.toLowerCase().includes(needle) ||
-        topic.capital.toLowerCase().includes(needle)
-      );
-    });
-  }, [appliedQuery, regionId]);
+    if (needle.length === 0 && regionCode === null) return TOPICS;
+    return SEARCH_INDEX.filter(
+      (entry) =>
+        (regionCode === null || entry.topic.regionCode === regionCode) &&
+        (needle.length === 0 || entry.title.includes(needle) || entry.capital.includes(needle)),
+    ).map((entry) => entry.topic);
+  }, [appliedQuery, regionCode]);
 
-  const toggleSelection = useCallback((topic: Topic) => {
-    setSelectedIds((previous) =>
-      previous.includes(topic.id)
-        ? previous.filter((id) => id !== topic.id)
-        : [...previous, topic.id],
-    );
+  const toggleSelection = useCallback((id: string) => {
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   }, []);
 
-  const clearSelection = useCallback(() => setSelectedIds([]), []);
+  const clearSelection = useCallback(() => setSelectedIds(EMPTY_SELECTION), []);
 
   const resetFilters = useCallback(() => {
     setQuery('');
     setAppliedQuery('');
-    setRegionId(null);
+    setRegionCode(null);
   }, []);
 
-  const isSelected = useCallback(
-    (topic: Topic) => selectedIds.includes(topic.id),
-    [selectedIds],
-  );
+  const isSelected = useCallback((id: string) => selectedIds.has(id), [selectedIds]);
 
-  const filtersActive = query.trim().length > 0 || regionId !== null;
+  const filtersActive = query.trim().length > 0 || regionCode !== null;
 
   return {
     query,
     setQuery,
     appliedQuery,
-    regionId,
-    setRegionId,
-    regions,
+    regionCode,
+    setRegionCode,
+    regions: REGION_OPTIONS,
     visibleTopics,
     totalCount: TOPICS.length,
-    selectedIds,
-    selectedCount: selectedIds.length,
+    selectedCount: selectedIds.size,
     isSelected,
     toggleSelection,
     clearSelection,

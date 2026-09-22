@@ -1,10 +1,19 @@
-export type RegionId = 'EAS' | 'ECS' | 'LCN' | 'MEA' | 'NAC' | 'SAS' | 'SSF';
+export enum RegionCode {
+  EAS = 'EAS',
+  ECS = 'ECS',
+  LCN = 'LCN',
+  MEA = 'MEA',
+  NAC = 'NAC',
+  SAS = 'SAS',
+  SSF = 'SSF',
+}
 
-export type IncomeLevel =
-  | 'High income'
-  | 'Upper middle income'
-  | 'Lower middle income'
-  | 'Low income';
+export enum IncomeLevel {
+  High = 'High income',
+  UpperMiddle = 'Upper middle income',
+  LowerMiddle = 'Lower middle income',
+  Low = 'Low income',
+}
 
 export type Topic = {
   id: string;
@@ -12,7 +21,7 @@ export type Topic = {
   description: string;
   imageUrl?: string;
   capital: string;
-  regionId: RegionId;
+  regionCode: RegionCode;
   regionName: string;
   incomeLevel: IncomeLevel;
   population: number;
@@ -20,19 +29,19 @@ export type Topic = {
   iso2: string;
 };
 
-export const REGION_NAMES: Record<RegionId, string> = {
-  EAS: 'Восточная Азия и Тихий океан',
-  ECS: 'Европа и Центральная Азия',
-  LCN: 'Латинская Америка и Карибы',
-  MEA: 'Ближний Восток и Северная Африка',
-  NAC: 'Северная Америка',
-  SAS: 'Южная Азия',
-  SSF: 'Африка южнее Сахары',
+export const REGION_NAMES: Record<RegionCode, string> = {
+  [RegionCode.EAS]: 'Восточная Азия и Тихий океан',
+  [RegionCode.ECS]: 'Европа и Центральная Азия',
+  [RegionCode.LCN]: 'Латинская Америка и Карибы',
+  [RegionCode.MEA]: 'Ближний Восток и Северная Африка',
+  [RegionCode.NAC]: 'Северная Америка',
+  [RegionCode.SAS]: 'Южная Азия',
+  [RegionCode.SSF]: 'Африка южнее Сахары',
 };
 
 export const INCOME_NAMES: Record<IncomeLevel, string> = {
-  'High income': 'Высокий доход',
-  'Upper middle income': 'Доход выше среднего',
-  'Lower middle income': 'Доход ниже среднего',
-  'Low income': 'Низкий доход',
+  [IncomeLevel.High]: 'Высокий доход',
+  [IncomeLevel.UpperMiddle]: 'Доход выше среднего',
+  [IncomeLevel.LowerMiddle]: 'Доход ниже среднего',
+  [IncomeLevel.Low]: 'Низкий доход',
 };
