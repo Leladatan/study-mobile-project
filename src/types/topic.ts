@@ -18,15 +18,17 @@ export enum IncomeLevel {
 export type Topic = {
   id: string;
   title: string;
-  description: string;
-  imageUrl?: string;
   capital: string;
   regionCode: RegionCode;
   regionName: string;
   incomeLevel: IncomeLevel;
-  population: number;
-  populationYear: string;
   iso2: string;
+  imageUrl?: string;
+  description?: string;
+  population?: number;
+  populationYear?: string;
+  latitude?: number;
+  longitude?: number;
 };
 
 export const REGION_NAMES: Record<RegionCode, string> = {
@@ -45,3 +47,15 @@ export const INCOME_NAMES: Record<IncomeLevel, string> = {
   [IncomeLevel.LowerMiddle]: 'Доход ниже среднего',
   [IncomeLevel.Low]: 'Низкий доход',
 };
+
+const REGION_CODES = new Set<string>(Object.values(RegionCode));
+
+const INCOME_VALUES = new Set<string>(Object.values(IncomeLevel));
+
+export function toRegionCode(value: string): RegionCode | null {
+  return REGION_CODES.has(value) ? (value as RegionCode) : null;
+}
+
+export function toIncomeLevel(value: string): IncomeLevel | null {
+  return INCOME_VALUES.has(value) ? (value as IncomeLevel) : null;
+}

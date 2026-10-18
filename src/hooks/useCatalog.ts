@@ -1,8 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { TOPICS } from '../data/topics';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { apiManager } from '../api/apiManager';
+import { DEFAULT_PAGE_SIZE, FULL_PAGE_SIZE } from '../api/countries/countriesApi';
+import { DEMO_TOPICS } from '../data/fixtures';
+import { isApiError, isCancel, type ApiError } from '../shared/api/errors';
+import { createRequestGuard } from '../shared/api/requestGuard';
 import { REGION_NAMES, RegionCode, type Topic } from '../types/topic';
 
-const SEARCH_DELAY = 250;
+const SEARCH_DELAY = 300;
+
+export type CatalogStatus = 'loading' | 'success' | 'error';
+
+export type CatalogSource = 'network' | 'demo';
 
 export type RegionOption = {
   code: RegionCode;
@@ -10,17 +18,31 @@ export type RegionOption = {
 };
 
 const REGION_OPTIONS: RegionOption[] = Object.values(RegionCode)
-  .filter((code) => TOPICS.some((topic) => topic.regionCode === code))
   .map((code) => ({ code, label: REGION_NAMES[code] }))
   .sort((a, b) => a.label.localeCompare(b.label, 'ru'));
 
-const SEARCH_INDEX = TOPICS.map((topic) => ({
-  topic,
-  title: topic.title.toLowerCase(),
-  capital: topic.capital.toLowerCase(),
-}));
-
 const EMPTY_SELECTION: ReadonlySet<string> = new Set();
+
+function byTitle(a: Topic, b: Topic): number {
+  return a.title.localeCompare(b.title, 'en');
+}
+
+function mergeById(previous: Topic[], incoming: Topic[]): Topic[] {
+  const seen = new Set(previous.map((topic) => topic.id));
+  const merged = previous.slice();
+
+  for (const topic of incoming) {
+    if (seen.has(topic.id)) continue;
+    seen.add(topic.id);
+    merged.push(topic);
+  }
+
+  return merged.sort(byTitle);
+}
+
+function asApiError(value: unknown): ApiError | null {
+  return isApiError(value) ? value : null;
+}
 
 export function useCatalog() {
   const [query, setQuery] = useState('');
@@ -28,22 +50,163 @@ export function useCatalog() {
   const [regionCode, setRegionCode] = useState<RegionCode | null>(null);
   const [selectedIds, setSelectedIds] = useState(EMPTY_SELECTION);
 
+  const [items, setItems] = useState<Topic[]>([]);
+  const [status, setStatus] = useState<CatalogStatus>('loading');
+  const [error, setError] = useState<ApiError | null>(null);
+
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
+
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState<ApiError | null>(null);
+
+  const [source, setSource] = useState<CatalogSource>('network');
+  const [attempt, setAttempt] = useState(0);
+
+  const pageGuard = useRef(createRequestGuard());
+  const moreGuard = useRef(createRequestGuard());
+  const moreController = useRef<AbortController | null>(null);
+  const moreInFlight = useRef(false);
+
   useEffect(() => {
     const timer = setTimeout(() => setAppliedQuery(query), SEARCH_DELAY);
     return () => clearTimeout(timer);
   }, [query]);
 
-  const visibleTopics = useMemo<Topic[]>(() => {
-    const needle = appliedQuery.trim().toLowerCase();
-    if (needle.length === 0 && regionCode === null) return TOPICS;
-    return SEARCH_INDEX.filter(
-      (entry) =>
-        (regionCode === null || entry.topic.regionCode === regionCode) &&
-        (needle.length === 0 || entry.title.includes(needle) || entry.capital.includes(needle)),
-    ).map((entry) => entry.topic);
-  }, [appliedQuery, regionCode]);
+  useEffect(() => {
+    if (source === 'demo') return;
 
-  const toggleSelection = useCallback((id: string) => {
+    const controller = new AbortController();
+    const token = pageGuard.current.start();
+
+    apiManager.countries
+      .list({
+        page: 1,
+        perPage: DEFAULT_PAGE_SIZE,
+        region: regionCode,
+        signal: controller.signal,
+      })
+      .then((result) => {
+        if (!pageGuard.current.isCurrent(token)) return;
+        setItems(result.items.slice().sort(byTitle));
+        setPage(result.page);
+        setPages(result.pages);
+        setTotal(result.total);
+        setStatus('success');
+      })
+      .catch((failure: unknown) => {
+        if (!pageGuard.current.isCurrent(token)) return;
+        if (isCancel(failure)) return;
+        setError(asApiError(failure));
+        setStatus('error');
+      });
+
+    return () => controller.abort();
+  }, [regionCode, source, attempt]);
+
+  const stopPending = useCallback(() => {
+    moreGuard.current.drop();
+    moreController.current?.abort();
+    moreController.current = null;
+    moreInFlight.current = false;
+  }, []);
+
+  const resetFeed = useCallback(() => {
+    stopPending();
+    pageGuard.current.drop();
+    setLoadingMore(false);
+    setMoreError(null);
+    setItems([]);
+    setPage(1);
+    setPages(1);
+    setStatus('loading');
+    setError(null);
+  }, [stopPending]);
+
+  const selectRegion = useCallback(
+    (code: RegionCode | null) => {
+      if (code === regionCode) return;
+      if (source === 'network') resetFeed();
+      setRegionCode(code);
+    },
+    [regionCode, source, resetFeed],
+  );
+
+  const retry = useCallback(() => {
+    resetFeed();
+    setAttempt((value) => value + 1);
+  }, [resetFeed]);
+
+  const useDemoData = useCallback(() => {
+    stopPending();
+    pageGuard.current.drop();
+    setLoadingMore(false);
+    setMoreError(null);
+    setSource('demo');
+    setItems(DEMO_TOPICS);
+    setPage(1);
+    setPages(1);
+    setTotal(DEMO_TOPICS.length);
+    setStatus('success');
+    setError(null);
+  }, [stopPending]);
+
+  const useNetworkData = useCallback(() => {
+    resetFeed();
+    setSource('network');
+    setAttempt((value) => value + 1);
+  }, [resetFeed]);
+
+  const fetchMore = useCallback(
+    (targetPage: number, perPage: number) => {
+      if (source === 'demo' || status !== 'success' || moreInFlight.current) return;
+
+      const controller = new AbortController();
+      const token = moreGuard.current.start();
+
+      moreController.current = controller;
+      moreInFlight.current = true;
+      setLoadingMore(true);
+      setMoreError(null);
+
+      apiManager.countries
+        .list({ page: targetPage, perPage, region: regionCode, signal: controller.signal })
+        .then((result) => {
+          if (!moreGuard.current.isCurrent(token)) return;
+          setItems((previous) => mergeById(previous, result.items));
+          setPage(result.page);
+          setPages(result.pages);
+          setTotal(result.total);
+        })
+        .catch((failure: unknown) => {
+          if (!moreGuard.current.isCurrent(token)) return;
+          if (isCancel(failure)) return;
+          setMoreError(asApiError(failure));
+        })
+        .finally(() => {
+          if (!moreGuard.current.isCurrent(token)) return;
+          moreInFlight.current = false;
+          moreController.current = null;
+          setLoadingMore(false);
+        });
+    },
+    [source, status, regionCode],
+  );
+
+  const hasMore = source === 'network' && status === 'success' && page < pages;
+
+  const loadMore = useCallback(() => {
+    if (!hasMore) return;
+    fetchMore(page + 1, DEFAULT_PAGE_SIZE);
+  }, [fetchMore, hasMore, page]);
+
+  const loadAll = useCallback(() => {
+    if (!hasMore) return;
+    fetchMore(1, FULL_PAGE_SIZE);
+  }, [fetchMore, hasMore]);
+
+  const toggleSelection = useCallback((id: Topic['id']) => {
     setSelectedIds((previous) => {
       const next = new Set(previous);
       if (next.has(id)) {
@@ -60,10 +223,31 @@ export function useCatalog() {
   const resetFilters = useCallback(() => {
     setQuery('');
     setAppliedQuery('');
-    setRegionCode(null);
-  }, []);
+    selectRegion(null);
+  }, [selectRegion]);
 
-  const isSelected = useCallback((id: string) => selectedIds.has(id), [selectedIds]);
+  const isSelected = useCallback((id: Topic['id']) => selectedIds.has(id), [selectedIds]);
+
+  const visibleTopics = useMemo<Topic[]>(() => {
+    const needle = appliedQuery.trim().toLowerCase();
+    let list = items;
+
+    if (source === 'demo' && regionCode !== null) {
+      list = list.filter((topic) => topic.regionCode === regionCode);
+    }
+
+    if (needle.length > 0) {
+      list = list.filter(
+        (topic) =>
+          topic.title.toLowerCase().includes(needle) ||
+          topic.capital.toLowerCase().includes(needle),
+      );
+    }
+
+    return list;
+  }, [items, appliedQuery, source, regionCode]);
+
+  const searchActive = appliedQuery.trim().length > 0;
 
   const filtersActive = query.trim().length > 0 || regionCode !== null;
 
@@ -71,11 +255,28 @@ export function useCatalog() {
     query,
     setQuery,
     appliedQuery,
+    searchActive,
     regionCode,
-    setRegionCode,
+    setRegionCode: selectRegion,
     regions: REGION_OPTIONS,
+
     visibleTopics,
-    totalCount: TOPICS.length,
+    loadedCount: items.length,
+    total,
+    status,
+    error,
+
+    hasMore,
+    loadMore,
+    loadAll,
+    loadingMore,
+    moreError,
+    retry,
+
+    source,
+    useDemoData,
+    useNetworkData,
+
     selectedCount: selectedIds.size,
     isSelected,
     toggleSelection,
