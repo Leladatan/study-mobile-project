@@ -15,18 +15,21 @@ import { colors, radius, spacing } from '../theme';
 import { INCOME_NAMES, type Topic } from '../types/topic';
 
 export type TopicScreenProps = {
-  id: string;
-  onBack: () => void;
+  id: string | undefined;
+  showHomeLink?: boolean;
+  onHome: () => void;
 };
 
-export function TopicScreen({ id, onBack }: TopicScreenProps) {
+export function TopicScreen({ id, showHomeLink = false, onHome }: TopicScreenProps) {
   const { topic, status, error, retry } = useTopic(id);
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <Pressable onPress={onBack} accessibilityRole="button" hitSlop={8} style={styles.back}>
-        <Text style={styles.backText}>‹ Каталог</Text>
-      </Pressable>
+      {showHomeLink ? (
+        <Pressable onPress={onHome} accessibilityRole="button" hitSlop={8} style={styles.back}>
+          <Text style={styles.backText}>‹ В каталог</Text>
+        </Pressable>
+      ) : null}
 
       {status === 'loading' ? (
         <View style={styles.state}>
@@ -42,7 +45,7 @@ export function TopicScreen({ id, onBack }: TopicScreenProps) {
           <Pressable onPress={retry} accessibilityRole="button" style={styles.primaryButton}>
             <Text style={styles.primaryButtonText}>Повторить</Text>
           </Pressable>
-          <Pressable onPress={onBack} accessibilityRole="button" hitSlop={8}>
+          <Pressable onPress={onHome} accessibilityRole="button" hitSlop={8}>
             <Text style={styles.action}>Вернуться в каталог</Text>
           </Pressable>
         </View>

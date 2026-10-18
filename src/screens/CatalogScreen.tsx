@@ -3,6 +3,8 @@ import {
   ActivityIndicator,
   FlatList,
   type ListRenderItem,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Pressable,
   StyleSheet,
   Text,
@@ -12,9 +14,9 @@ import { RegionFilter } from '../components/RegionFilter';
 import { SearchField } from '../components/SearchField';
 import { TopicCard } from '../components/TopicCard';
 import { DEMO_NOTE } from '../data/fixtures';
-import { useCatalog } from '../hooks/useCatalog';
+import { useCatalogState } from '../hooks/CatalogProvider';
 import { describeApiError } from '../shared/api/errors';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, spacing, tabBarSpace } from '../theme';
 import type { Topic } from '../types/topic';
 
 export type CatalogScreenProps = {
@@ -49,7 +51,10 @@ export function CatalogScreen({ onOpen }: CatalogScreenProps) {
     clearSelection,
     resetFilters,
     filtersActive,
-  } = useCatalog();
+    scrollOffset,
+    rememberOffset,
+    activate,
+  } = useCatalogState();
 
   const renderItem = useCallback<ListRenderItem<Topic>>(
     ({ item }) => (
@@ -66,10 +71,25 @@ export function CatalogScreen({ onOpen }: CatalogScreenProps) {
   const keyExtractor = useCallback((item: Topic) => item.id, []);
 
   const scrolled = useRef(false);
+  const listRef = useRef<FlatList<Topic>>(null);
+  const restored = useRef(false);
 
-  const handleScroll = useCallback(() => {
-    scrolled.current = true;
-  }, []);
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      scrolled.current = true;
+      rememberOffset(event.nativeEvent.contentOffset.y);
+    },
+    [rememberOffset],
+  );
+
+  const restoreOffset = useCallback(() => {
+    if (restored.current) return;
+    const offset = scrollOffset.current;
+    if (offset <= 0) return;
+
+    restored.current = true;
+    listRef.current?.scrollToOffset({ offset, animated: false });
+  }, [scrollOffset]);
 
   const handleEndReached = useCallback(() => {
     if (!scrolled.current) return;
@@ -222,9 +242,12 @@ export function CatalogScreen({ onOpen }: CatalogScreenProps) {
 
   return (
     <FlatList
+      ref={listRef}
       data={visibleTopics}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
+      onLayout={activate}
+      onContentSizeChange={restoreOffset}
       ListHeaderComponent={header}
       ListEmptyComponent={listEmpty}
       ListFooterComponent={footer}
@@ -247,7 +270,7 @@ function Separator() {
 const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
-    paddingBottom: spacing.xxl,
+    paddingBottom: tabBarSpace,
   },
   header: {
     gap: spacing.md,

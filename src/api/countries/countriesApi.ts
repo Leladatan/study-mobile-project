@@ -21,6 +21,14 @@ export function isValidCountryId(id: string): boolean {
   return COUNTRY_ID.test(id);
 }
 
+export function normalizeCountryId(value: unknown): string | undefined {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== 'string') return undefined;
+
+  const normalized = raw.trim().toUpperCase();
+  return isValidCountryId(normalized) ? normalized : undefined;
+}
+
 type QueryValue = string | number | undefined;
 
 function query(params: Record<string, QueryValue>): string {
