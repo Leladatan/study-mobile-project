@@ -1,10 +1,10 @@
 {
   "name": "worlddex",
-  "version": "1.0.0",
+  "version": "0.4.0",
   "main": "index.ts",
   "dependencies": {
     "@expo/metro-runtime": "~57.0.16",
-    "expo": "~57.0.24",
+    "expo": "~57.0.30",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -12,9 +12,11 @@
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {
+    "@types/node": "^26.6.5",
     "@types/react": "~19.2.2",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.2",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -25,7 +27,8 @@
     "typecheck": "tsc --noEmit",
     "doctor": "expo-doctor",
     "lint": "expo lint",
-    "bench": "node scripts/bench-selection.mjs"
+    "bench": "node scripts/bench-selection.mjs",
+    "test": "node --import tsx --test \"src/**/*.test.ts\""
   },
   "private": true
 }

@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatPopulation } from '../lib/format';
 import { colors, radius, spacing } from '../theme';
@@ -7,6 +7,7 @@ import { INCOME_NAMES, type Topic } from '../types/topic';
 export type TopicCardProps = {
   topic: Topic;
   onPress: (id: Topic['id']) => void;
+  onLongPress?: (id: Topic['id']) => void;
   featured?: boolean;
   selected?: boolean;
 };
@@ -14,15 +15,20 @@ export type TopicCardProps = {
 function TopicCardView({
   topic,
   onPress,
+  onLongPress,
   featured = false,
   selected = false,
 }: TopicCardProps) {
+  const [flagFailed, setFlagFailed] = useState(false);
+  const showFlag = topic.imageUrl !== undefined && !flagFailed;
+
   return (
     <Pressable
       onPress={() => onPress(topic.id)}
+      onLongPress={onLongPress === undefined ? undefined : () => onLongPress(topic.id)}
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      accessibilityLabel={`${topic.title}, столица ${topic.capital}`}
+      accessibilityLabel={`${topic.title}, столица ${topic.capital || 'не указана'}`}
       style={({ pressed }) => [
         styles.card,
         featured && styles.cardFeatured,
@@ -30,11 +36,12 @@ function TopicCardView({
         pressed && styles.cardPressed,
       ]}>
       <View style={styles.row}>
-        {topic.imageUrl ? (
+        {showFlag ? (
           <Image
             source={{ uri: topic.imageUrl }}
             style={[styles.flag, featured && styles.flagFeatured]}
             resizeMode="cover"
+            onError={() => setFlagFailed(true)}
             accessibilityIgnoresInvertColors
           />
         ) : (
@@ -48,7 +55,7 @@ function TopicCardView({
             {topic.title}
           </Text>
           <Text style={styles.capital} numberOfLines={1}>
-            {topic.capital}
+            {topic.capital.length > 0 ? topic.capital : 'Столица не указана'}
           </Text>
         </View>
 
@@ -57,9 +64,11 @@ function TopicCardView({
         </View>
       </View>
 
-      <Text style={styles.description} numberOfLines={featured ? 4 : 2}>
-        {topic.description}
-      </Text>
+      {topic.description !== undefined ? (
+        <Text style={styles.description} numberOfLines={featured ? 4 : 2}>
+          {topic.description}
+        </Text>
+      ) : null}
 
       <View style={styles.meta}>
         <View style={styles.tag}>
@@ -67,14 +76,12 @@ function TopicCardView({
             {topic.regionName}
           </Text>
         </View>
-        <Text style={styles.population}>
-          {formatPopulation(topic.population)} чел. · {topic.populationYear}
+        <Text style={styles.population} numberOfLines={1}>
+          {topic.population !== undefined
+            ? `${formatPopulation(topic.population)} чел. · ${topic.populationYear ?? ''}`.trim()
+            : INCOME_NAMES[topic.incomeLevel]}
         </Text>
       </View>
-
-      {featured ? (
-        <Text style={styles.income}>{INCOME_NAMES[topic.incomeLevel]}</Text>
-      ) : null}
     </Pressable>
   );
 }
@@ -188,10 +195,5 @@ const styles = StyleSheet.create({
   population: {
     fontSize: 12,
     color: colors.textFaint,
-  },
-  income: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
   },
 });
