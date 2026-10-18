@@ -3,7 +3,7 @@
     "name": "WorldDex",
     "slug": "worlddex",
     "description": "Мобильный справочник стран мира: столица, регион, уровень дохода, население и флаг по данным World Bank Open Data.",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -20,8 +20,15 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
     },
-    "scheme": "worlddex"
+    "scheme": "worlddex",
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }

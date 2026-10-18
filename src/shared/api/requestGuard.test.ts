@@ -42,3 +42,13 @@ test('у разных экранов свои счётчики', () => {
 
   assert.equal(catalog.isCurrent(catalogToken), true);
 });
+
+test('устаревший токен не воскресает после новых запросов', () => {
+  const guard = createRequestGuard();
+
+  const stale = guard.start();
+  guard.start();
+  guard.start();
+
+  assert.equal(guard.isCurrent(stale), false);
+});

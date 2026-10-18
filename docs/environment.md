@@ -21,6 +21,11 @@
 | `react-dom` | 19.2.3 | запуск в браузере |
 | `react-native-web` | 0.21.2 | запуск в браузере |
 | `@expo/metro-runtime` | 57.0.16 | запуск в браузере |
+| `expo-router` | 57.0.28 | навигация по структуре папок |
+| `react-native-safe-area-context` | 5.7.0 | безопасные отступы |
+| `react-native-screens` | 4.26.0 | нативные экраны |
+| `expo-linking` | 57.0.13 | прямые ссылки |
+| `expo-constants` | 57.0.22 | конфигурация приложения |
 | `typescript` | 6.0.3 | проверка типов |
 | `@types/react` | 19.2.18 | типы React |
 | `eslint` | 9.39.5 | линтер |
@@ -50,7 +55,7 @@ npx create-expo-app@latest worlddex --template blank-typescript
 | --- | --- | --- |
 | Типы | `npm run typecheck` | без ошибок |
 | Линтер | `npm run lint` | 0 ошибок, 0 предупреждений |
-| Тесты | `npm test` | 19 тестов проходят |
+| Тесты | `npm test` | 26 тестов проходят |
 | Конфигурация Expo | `npm run doctor` | 21/21 |
 
 Тесты запускаются через `tsx`, потому что исходники импортируются без расширения `.ts`,

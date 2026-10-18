@@ -5,6 +5,7 @@ import { DEMO_TOPICS } from '../data/fixtures';
 import { isApiError, isCancel, type ApiError } from '../shared/api/errors';
 import { createRequestGuard } from '../shared/api/requestGuard';
 import { REGION_NAMES, RegionCode, type Topic } from '../types/topic';
+import { catalogMemory } from './catalogMemory';
 
 const SEARCH_DELAY = 300;
 
@@ -45,29 +46,46 @@ function asApiError(value: unknown): ApiError | null {
 }
 
 export function useCatalog() {
-  const [query, setQuery] = useState('');
-  const [appliedQuery, setAppliedQuery] = useState('');
-  const [regionCode, setRegionCode] = useState<RegionCode | null>(null);
-  const [selectedIds, setSelectedIds] = useState(EMPTY_SELECTION);
+  const [query, setQuery] = useState(catalogMemory.query);
+  const [appliedQuery, setAppliedQuery] = useState(catalogMemory.query);
+  const [regionCode, setRegionCode] = useState<RegionCode | null>(catalogMemory.regionCode);
+  const [selectedIds, setSelectedIds] = useState(catalogMemory.selectedIds);
 
-  const [items, setItems] = useState<Topic[]>([]);
-  const [status, setStatus] = useState<CatalogStatus>('loading');
+  const [items, setItems] = useState<Topic[]>(catalogMemory.items);
+  const [status, setStatus] = useState<CatalogStatus>(
+    catalogMemory.loaded ? 'success' : 'loading',
+  );
   const [error, setError] = useState<ApiError | null>(null);
 
-  const [page, setPage] = useState(1);
-  const [pages, setPages] = useState(1);
-  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(catalogMemory.page);
+  const [pages, setPages] = useState(catalogMemory.pages);
+  const [total, setTotal] = useState(catalogMemory.total);
 
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState<ApiError | null>(null);
 
   const [source, setSource] = useState<CatalogSource>('network');
   const [attempt, setAttempt] = useState(0);
+  const [active, setActive] = useState(catalogMemory.loaded);
 
   const pageGuard = useRef(createRequestGuard());
   const moreGuard = useRef(createRequestGuard());
   const moreController = useRef<AbortController | null>(null);
   const moreInFlight = useRef(false);
+  const scrollOffset = useRef(catalogMemory.offset);
+  const activated = useRef(catalogMemory.loaded);
+  const restored = useRef(catalogMemory.loaded);
+
+  useEffect(() => {
+    catalogMemory.query = query;
+    catalogMemory.regionCode = regionCode;
+    catalogMemory.items = items;
+    catalogMemory.page = page;
+    catalogMemory.pages = pages;
+    catalogMemory.total = total;
+    catalogMemory.selectedIds = selectedIds;
+    catalogMemory.loaded = source === 'network' && status === 'success';
+  });
 
   useEffect(() => {
     const timer = setTimeout(() => setAppliedQuery(query), SEARCH_DELAY);
@@ -75,6 +93,13 @@ export function useCatalog() {
   }, [query]);
 
   useEffect(() => {
+    if (!active) return;
+
+    if (restored.current) {
+      restored.current = false;
+      return;
+    }
+
     if (source === 'demo') return;
 
     const controller = new AbortController();
@@ -103,7 +128,13 @@ export function useCatalog() {
       });
 
     return () => controller.abort();
-  }, [regionCode, source, attempt]);
+  }, [active, regionCode, source, attempt]);
+
+  const activate = useCallback(() => {
+    if (activated.current) return;
+    activated.current = true;
+    setActive(true);
+  }, []);
 
   const stopPending = useCallback(() => {
     moreGuard.current.drop();
@@ -132,6 +163,11 @@ export function useCatalog() {
     },
     [regionCode, source, resetFeed],
   );
+
+  const rememberOffset = useCallback((offset: number) => {
+    scrollOffset.current = offset;
+    catalogMemory.offset = offset;
+  }, []);
 
   const retry = useCallback(() => {
     resetFeed();
@@ -283,5 +319,9 @@ export function useCatalog() {
     clearSelection,
     resetFilters,
     filtersActive,
+
+    scrollOffset,
+    rememberOffset,
+    activate,
   };
 }
