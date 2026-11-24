@@ -7,7 +7,6 @@ export type CatalogMemory = {
   page: number;
   pages: number;
   total: number;
-  selectedIds: ReadonlySet<string>;
   offset: number;
   loaded: boolean;
 };
@@ -19,7 +18,6 @@ export const catalogMemory: CatalogMemory = {
   page: 1,
   pages: 1,
   total: 0,
-  selectedIds: new Set(),
   offset: 0,
   loaded: false,
 };
@@ -31,7 +29,6 @@ export function forgetCatalog(): void {
   catalogMemory.page = 1;
   catalogMemory.pages = 1;
   catalogMemory.total = 0;
-  catalogMemory.selectedIds = new Set();
   catalogMemory.offset = 0;
   catalogMemory.loaded = false;
 }

@@ -3,18 +3,20 @@
 ## Цепочка вызовов
 
 ```
-приложение  →  apiManager  →  transportService  →  сеть
+экран / RTK Query  →  apiManager  →  transportService  →  сеть
 ```
 
 | Уровень | За что отвечает | Файлы |
 | --- | --- | --- |
-| Приложение | экран и состояния интерфейса | `src/screens/`, `src/hooks/` |
+| Приложение | экран, локальный UI, избранное | `src/screens/`, `src/hooks/`, `src/features/` |
+| RTK Query | кэш запросов и статусы | `src/features/posts/api/catalogApi.ts` |
 | apiManager | методы по темам, DTO, проверка и преобразование | `src/api/` |
 | transportService | общий `fetch`, таймаут, отмена, ошибки и логи | `src/shared/api/` |
 | Сеть | HTTPS и удалённый API | `api.worldbank.org/v2` |
 
-Правило простое: **`fetch` вызывается только в `transportService`.** Экраны и хуки обращаются
-к `apiManager`, а он — к транспорту. Проверяется поиском по проекту:
+Правило простое: **`fetch` вызывается только в `transportService`.** Экраны подписываются
+на RTK Query; `queryFn` зовёт `apiManager`, а он — транспорт. `fetchBaseQuery` не используется.
+Проверяется поиском по проекту:
 
 ```bash
 grep -rn "fetch(" src --include=*.ts --include=*.tsx
@@ -24,15 +26,15 @@ grep -rn "fetch(" src --include=*.ts --include=*.tsx
 
 ## Как проходит один запрос
 
-1. `CatalogScreen` вызывает `useCatalog`.
-2. Хук вызывает `apiManager.countries.list({ page, region, signal })`.
+1. `CatalogScreen` / `useCatalog` подписывается на `useGetTopicsQuery`.
+2. `catalogApi.queryFn` вызывает `apiManager.countries.list({ page, region, signal })`.
 3. `countriesApi` собирает путь `/country?format=json&page=1&per_page=50`, заводит `requestId`
    и передаёт запрос в `transportService.requestJson`.
 4. `transportService` ставит таймер на 10 секунд, связывает внешний `AbortSignal` со своим
    контроллером, пишет `http.start`, делает `fetch`, проверяет `response.ok`, разбирает тело
    и пишет `http.end`.
 5. `countriesApi` проверяет форму ответа (`parseCountryPage`) и превращает DTO в `Topic[]`.
-6. Хук кладёт результат в состояние, экран перерисовывается.
+6. RTK Query кладёт результат в кэш; `useCatalog` применяет локальный поиск и порции UI.
 
 Транспорт ничего не знает про страны: он возвращает `unknown`. Знание о полях живёт в модуле API.
 

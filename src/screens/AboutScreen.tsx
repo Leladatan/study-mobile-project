@@ -1,12 +1,15 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { transportService } from '../shared/api/transportService';
 import { colors, radius, spacing, tabBarSpace } from '../theme';
 
-const VERSION = '0.5.0';
+const VERSION = '0.6.0';
 
 export function AboutScreen() {
+  const insets = useSafeAreaInsets();
+
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}>
       <View>
         <Text style={styles.brand}>WorldDex</Text>
         <Text style={styles.tagline}>Справочник стран мира, версия {VERSION}</Text>
@@ -35,8 +38,17 @@ export function AboutScreen() {
       <View style={styles.card}>
         <Text style={styles.title}>Как пользоваться</Text>
         <Text style={styles.text}>
-          Нажатие на карточку открывает страну. Долгое нажатие отмечает её в списке. Возврат
-          сохраняет поиск, фильтр и позицию прокрутки.
+          Нажатие на карточку открывает страну. Звёздочка добавляет страну в избранное на каталоге,
+          карточке и вкладке «Избранное». Возврат сохраняет поиск, фильтр и позицию прокрутки.
+        </Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.title}>Избранное</Text>
+        <Text style={styles.text}>
+          Избранное хранится только в памяти текущего запуска и сбрасывается после перезапуска.
+          Подтверждение идёт через учебный сервис без сохранения на сервере. Кнопка «Ошибка
+          следующего изменения» один раз отклоняет операцию, чтобы проверить откат.
         </Text>
       </View>
 

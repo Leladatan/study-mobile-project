@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatPopulation } from '../lib/format';
 import { colors, radius, spacing } from '../theme';
 import { INCOME_NAMES, type Topic } from '../types/topic';
@@ -7,32 +7,38 @@ import { INCOME_NAMES, type Topic } from '../types/topic';
 export type TopicCardProps = {
   topic: Topic;
   onPress: (id: Topic['id']) => void;
-  onLongPress?: (id: Topic['id']) => void;
+  onToggleFavorite?: (id: Topic['id']) => void;
+  onFailNext?: (id: Topic['id']) => void;
   featured?: boolean;
-  selected?: boolean;
+  favorite?: boolean;
+  pending?: boolean;
+  errorMessage?: string;
 };
 
 function TopicCardView({
   topic,
   onPress,
-  onLongPress,
+  onToggleFavorite,
+  onFailNext,
   featured = false,
-  selected = false,
+  favorite = false,
+  pending = false,
+  errorMessage,
 }: TopicCardProps) {
   const [flagFailed, setFlagFailed] = useState(false);
   const showFlag = topic.imageUrl !== undefined && !flagFailed;
+  const toggleDisabled = onToggleFavorite === undefined || pending;
 
   return (
     <Pressable
       onPress={() => onPress(topic.id)}
-      onLongPress={onLongPress === undefined ? undefined : () => onLongPress(topic.id)}
       accessibilityRole="button"
-      accessibilityState={{ selected }}
+      accessibilityState={{ selected: favorite }}
       accessibilityLabel={`${topic.title}, столица ${topic.capital || 'не указана'}`}
       style={({ pressed }) => [
         styles.card,
         featured && styles.cardFeatured,
-        selected && styles.cardSelected,
+        favorite && styles.cardFavorite,
         pressed && styles.cardPressed,
       ]}>
       <View style={styles.row}>
@@ -59,9 +65,25 @@ function TopicCardView({
           </Text>
         </View>
 
-        <View style={[styles.mark, selected && styles.markActive]}>
-          <Text style={[styles.markIcon, selected && styles.markIconActive]}>✓</Text>
-        </View>
+        <Pressable
+          onPress={toggleDisabled ? undefined : () => onToggleFavorite(topic.id)}
+          disabled={toggleDisabled}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityState={{ selected: favorite, disabled: toggleDisabled }}
+          accessibilityLabel={favorite ? 'Убрать из избранного' : 'Добавить в избранное'}
+          style={({ pressed }) => [
+            styles.mark,
+            favorite && styles.markActive,
+            pending && styles.markPending,
+            pressed && !toggleDisabled && styles.markPressed,
+          ]}>
+          {pending ? (
+            <ActivityIndicator size="small" color={favorite ? colors.surface : colors.accent} />
+          ) : (
+            <Text style={[styles.markIcon, favorite && styles.markIconActive]}>★</Text>
+          )}
+        </Pressable>
       </View>
 
       {topic.description !== undefined ? (
@@ -82,6 +104,20 @@ function TopicCardView({
             : INCOME_NAMES[topic.incomeLevel]}
         </Text>
       </View>
+
+      {errorMessage !== undefined ? (
+        <Text style={styles.errorText}>{errorMessage}</Text>
+      ) : null}
+
+      {onFailNext !== undefined && !pending ? (
+        <Pressable
+          onPress={() => onFailNext(topic.id)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Ошибка следующего изменения">
+          <Text style={styles.failNext}>Ошибка следующего изменения</Text>
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }
@@ -101,7 +137,7 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
     borderWidth: 2,
   },
-  cardSelected: {
+  cardFavorite: {
     borderColor: colors.accent,
     backgroundColor: colors.accentSoft,
   },
@@ -109,8 +145,8 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   mark: {
-    width: 24,
-    height: 24,
+    width: 32,
+    height: 32,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.border,
@@ -121,10 +157,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     borderColor: colors.accent,
   },
+  markPending: {
+    opacity: 0.7,
+  },
+  markPressed: {
+    opacity: 0.5,
+  },
   markIcon: {
-    fontSize: 13,
-    lineHeight: 16,
-    color: 'transparent',
+    fontSize: 16,
+    lineHeight: 18,
+    color: colors.textFaint,
   },
   markIconActive: {
     color: colors.surface,
@@ -195,5 +237,15 @@ const styles = StyleSheet.create({
   population: {
     fontSize: 12,
     color: colors.textFaint,
+  },
+  errorText: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#B91C1C',
+  },
+  failNext: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textMuted,
   },
 });

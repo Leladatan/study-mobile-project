@@ -8,6 +8,7 @@
 | Файл | Адрес | Что показывает | Как уйти |
 | --- | --- | --- | --- |
 | `app/(tabs)/index.tsx` | `/` | каталог стран | вкладка или переход в карточку |
+| `app/(tabs)/favorites.tsx` | `/favorites` | избранные страны | вкладка или переход в карточку |
 | `app/(tabs)/about.tsx` | `/about` | об источнике данных и правилах поиска | вкладка |
 | `app/topic/[id].tsx` | `/topic/JPN` | карточка страны | назад или «В каталог» |
 | `app/+not-found.tsx` | любой неизвестный адрес | «Такой страницы нет» | «В каталог» |
@@ -97,29 +98,27 @@ export function normalizeCountryId(value: unknown): string | undefined {
 
 | Состояние | Где живёт | Что с ним при возврате |
 | --- | --- | --- |
-| запрос, фильтр, загруженные страницы, выбор, позиция прокрутки | `catalogMemory` + `CatalogProvider` над навигатором | сохраняется |
-| данные карточки | `useTopic` внутри экрана карточки | загружаются заново |
+| запрос, фильтр, позиция прокрутки | `useCatalog` + `catalogMemory` | сохраняется в рамках запуска |
+| загруженные страницы каталога | кэш RTK Query | сохраняется, пока жив store |
+| избранное (id, pending, ошибки) | `favoritesSlice` | общее для вкладок и карточки |
+| данные карточки | `useGetTopicByIdQuery` | кэш RTK Query / повторный запрос |
 | текущий адрес и история | Expo Router | сохраняется |
 
-Пользовательский хук разделяет логику, а не данные: каждый вызов `useCatalog` создаёт свой
-набор состояния. Два экрана, вызвавшие его независимо, не увидят состояние друг друга.
-Чтобы данные стали общими, их нужно поднять выше — это и делает `CatalogProvider`
-в `app/_layout.tsx`.
+Локальный UI каталога по-прежнему поднимается через `CatalogProvider`. Серверные данные и
+избранное живут в Redux store (`src/app/store.ts`), который создаётся один раз на запуск.
 
-Этого оказалось мало. На вебе при первом переходе Expo Router пересоздаёт дерево маршрутов
-вместе с провайдером, и состояние терялось. Поэтому значения дополнительно хранятся
-в `src/hooks/catalogMemory.ts` — обычном объекте на уровне модуля. Модуль живёт, пока работает
-приложение, поэтому пересоздание дерева его не задевает.
+На вебе remount дерева маршрутов больше не обнуляет избранное и кэш API: они в store.
+`catalogMemory` по-прежнему страхует черновик поиска и offset.
 
-При перезапуске приложения память очищается: на диск ничего не пишется.
+При перезапуске приложения store очищается: на диск ничего не пишется.
 
 ## Путь запроса из карточки
 
 ```
 TopicCard → router.push({ pathname: '/topic/[id]', params: { id } })
           → app/topic/[id].tsx: normalizeCountryId(params.id)
-          → TopicScreen → useTopic(id)
-          → apiManager.countries.getById(id) + getPopulation(id)
+          → TopicScreen → useTopic → useGetTopicByIdQuery
+          → catalogApi.queryFn → apiManager.countries.getById + getPopulation
           → transportService.requestJson()
           → https://api.worldbank.org/v2/country/JPN
 ```
