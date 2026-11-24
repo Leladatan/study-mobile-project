@@ -1,9 +1,10 @@
 {
   "name": "worlddex",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/metro-runtime": "~57.0.16",
+    "@reduxjs/toolkit": "^2.15.0",
     "expo": "~57.0.30",
     "expo-constants": "~57.0.22",
     "expo-linking": "~57.0.13",
@@ -14,7 +15,8 @@
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
-    "react-native-web": "^0.21.2"
+    "react-native-web": "^0.21.2",
+    "react-redux": "^9.3.1"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

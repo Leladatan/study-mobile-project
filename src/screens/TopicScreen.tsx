@@ -8,6 +8,14 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useAppDispatch, useAppSelector } from '../app/hooks';
+import { favoriteDemoService } from '../features/favorites/api/favoriteDemoService';
+import { toggleFavorite } from '../features/favorites/model/favoriteCommand';
+import {
+  selectFavoriteError,
+  selectIsFavorite,
+  selectIsFavoritePending,
+} from '../features/favorites/model/selectors';
 import { useTopic } from '../hooks/useTopic';
 import { formatPopulation } from '../lib/format';
 import { describeApiError } from '../shared/api/errors';
@@ -59,6 +67,10 @@ export function TopicScreen({ id, showHomeLink = false, onHome }: TopicScreenPro
 function TopicDetails({ topic }: { topic: Topic }) {
   const [flagFailed, setFlagFailed] = useState(false);
   const showFlag = topic.imageUrl !== undefined && !flagFailed;
+  const dispatch = useAppDispatch();
+  const favorite = useAppSelector((state) => selectIsFavorite(state, topic.id));
+  const pending = useAppSelector((state) => selectIsFavoritePending(state, topic.id));
+  const errorMessage = useAppSelector((state) => selectFavoriteError(state, topic.id));
 
   return (
     <View style={styles.card}>
@@ -76,10 +88,48 @@ function TopicDetails({ topic }: { topic: Topic }) {
         </View>
       )}
 
-      <Text style={styles.title}>{topic.title}</Text>
-      <Text style={styles.code}>
-        {topic.id} · {topic.iso2}
-      </Text>
+      <View style={styles.titleRow}>
+        <View style={styles.titleBlock}>
+          <Text style={styles.title}>{topic.title}</Text>
+          <Text style={styles.code}>
+            {topic.id} · {topic.iso2}
+          </Text>
+        </View>
+
+        <Pressable
+          onPress={pending ? undefined : () => void dispatch(toggleFavorite(topic.id))}
+          disabled={pending}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityState={{ selected: favorite, disabled: pending }}
+          accessibilityLabel={favorite ? 'Убрать из избранного' : 'Добавить в избранное'}
+          style={({ pressed }) => [
+            styles.favoriteButton,
+            favorite && styles.favoriteButtonActive,
+            pending && styles.favoriteButtonPending,
+            pressed && !pending && styles.favoriteButtonPressed,
+          ]}>
+          {pending ? (
+            <ActivityIndicator size="small" color={favorite ? colors.surface : colors.accent} />
+          ) : (
+            <Text style={[styles.favoriteIcon, favorite && styles.favoriteIconActive]}>★</Text>
+          )}
+        </Pressable>
+      </View>
+
+      <Text style={styles.serviceNote}>Учебный сервис: без сохранения</Text>
+
+      {errorMessage !== undefined ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
+      {!pending ? (
+        <Pressable
+          onPress={() => favoriteDemoService.failNext(topic.id)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Ошибка следующего изменения">
+          <Text style={styles.failNext}>Ошибка следующего изменения</Text>
+        </Pressable>
+      ) : null}
 
       {topic.description !== undefined ? (
         <Text style={styles.description}>{topic.description}</Text>
@@ -158,6 +208,15 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     color: colors.textFaint,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  titleBlock: {
+    flex: 1,
+    gap: 4,
+  },
   title: {
     fontSize: 26,
     fontWeight: '700',
@@ -167,6 +226,45 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textFaint,
     letterSpacing: 1,
+  },
+  favoriteButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  favoriteButtonActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  favoriteButtonPending: {
+    opacity: 0.7,
+  },
+  favoriteButtonPressed: {
+    opacity: 0.5,
+  },
+  favoriteIcon: {
+    fontSize: 20,
+    color: colors.textFaint,
+  },
+  favoriteIconActive: {
+    color: colors.surface,
+  },
+  serviceNote: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#B91C1C',
+  },
+  failNext: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textMuted,
   },
   description: {
     fontSize: 14,

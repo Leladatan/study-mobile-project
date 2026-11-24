@@ -24,6 +24,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="favorites"
+        options={{
+          title: 'Избранное',
+          tabBarIcon: ({ color }) => <TabIcon symbol="★" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="about"
         options={{
           title: 'О приложении',

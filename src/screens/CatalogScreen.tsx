@@ -10,18 +10,54 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { RegionFilter } from '../components/RegionFilter';
 import { SearchField } from '../components/SearchField';
 import { TopicCard } from '../components/TopicCard';
 import { DEMO_NOTE } from '../data/fixtures';
+import { favoriteDemoService } from '../features/favorites/api/favoriteDemoService';
+import { toggleFavorite } from '../features/favorites/model/favoriteCommand';
+import {
+  selectFavoriteCount,
+  selectFavoriteError,
+  selectIsFavorite,
+  selectIsFavoritePending,
+} from '../features/favorites/model/selectors';
 import { useCatalogState } from '../hooks/CatalogProvider';
-import { describeApiError } from '../shared/api/errors';
 import { colors, radius, spacing, tabBarSpace } from '../theme';
 import type { Topic } from '../types/topic';
 
 export type CatalogScreenProps = {
   onOpen: (id: Topic['id']) => void;
 };
+
+function CatalogTopicCard({
+  topic,
+  onOpen,
+}: {
+  topic: Topic;
+  onOpen: (id: Topic['id']) => void;
+}) {
+  const dispatch = useAppDispatch();
+  const favorite = useAppSelector((state) => selectIsFavorite(state, topic.id));
+  const pending = useAppSelector((state) => selectIsFavoritePending(state, topic.id));
+  const errorMessage = useAppSelector((state) => selectFavoriteError(state, topic.id));
+
+  return (
+    <TopicCard
+      topic={topic}
+      onPress={onOpen}
+      onToggleFavorite={(id) => {
+        void dispatch(toggleFavorite(id));
+      }}
+      onFailNext={(id) => favoriteDemoService.failNext(id)}
+      favorite={favorite}
+      pending={pending}
+      errorMessage={errorMessage}
+    />
+  );
+}
 
 export function CatalogScreen({ onOpen }: CatalogScreenProps) {
   const {
@@ -35,20 +71,17 @@ export function CatalogScreen({ onOpen }: CatalogScreenProps) {
     visibleTopics,
     loadedCount,
     status,
-    error,
+    errorMessage,
     hasMore,
     loadMore,
     loadAll,
     loadingMore,
     moreError,
     retry,
+    isFetching,
     source,
     useDemoData,
     useNetworkData,
-    selectedCount,
-    isSelected,
-    toggleSelection,
-    clearSelection,
     resetFilters,
     filtersActive,
     scrollOffset,
@@ -56,19 +89,24 @@ export function CatalogScreen({ onOpen }: CatalogScreenProps) {
     activate,
   } = useCatalogState();
 
+  const favoriteCount = useAppSelector(selectFavoriteCount);
+
   const renderItem = useCallback<ListRenderItem<Topic>>(
-    ({ item }) => (
-      <TopicCard
-        topic={item}
-        onPress={onOpen}
-        onLongPress={toggleSelection}
-        selected={isSelected(item.id)}
-      />
-    ),
-    [onOpen, toggleSelection, isSelected],
+    ({ item }) => <CatalogTopicCard topic={item} onOpen={onOpen} />,
+    [onOpen],
   );
 
   const keyExtractor = useCallback((item: Topic) => item.id, []);
+
+  const insets = useSafeAreaInsets();
+
+  const changeQuery = useCallback(
+    (value: string) => {
+      setQuery(value);
+      if (value.trim().length > 0 && hasMore) loadAll();
+    },
+    [setQuery, hasMore, loadAll],
+  );
 
   const scrolled = useRef(false);
   const listRef = useRef<FlatList<Topic>>(null);
@@ -104,6 +142,14 @@ export function CatalogScreen({ onOpen }: CatalogScreenProps) {
         <Text style={styles.tagline}>Справочник стран мира</Text>
       </View>
 
+      <View style={styles.serviceNote}>
+        <Text style={styles.serviceTitle}>Учебный сервис: без сохранения</Text>
+        <Text style={styles.serviceText}>
+          Избранное живёт только в текущем запуске. Кнопка «Ошибка следующего изменения» на
+          карточке один раз отклоняет подтверждение — для проверки отката.
+        </Text>
+      </View>
+
       {source === 'demo' ? (
         <View style={styles.demo}>
           <Text style={styles.demoTitle}>Демо-данные</Text>
@@ -114,7 +160,7 @@ export function CatalogScreen({ onOpen }: CatalogScreenProps) {
         </View>
       ) : null}
 
-      <SearchField value={query} onChange={setQuery} />
+      <SearchField value={query} onChange={changeQuery} />
 
       <RegionFilter regions={regions} selected={regionCode} onSelect={setRegionCode} />
 
@@ -126,12 +172,7 @@ export function CatalogScreen({ onOpen }: CatalogScreenProps) {
         </Text>
 
         <View style={styles.actions}>
-          <Text style={styles.selectedCount}>Выбрано: {selectedCount}</Text>
-          {selectedCount > 0 ? (
-            <Pressable onPress={clearSelection} hitSlop={8} accessibilityRole="button">
-              <Text style={styles.action}>снять</Text>
-            </Pressable>
-          ) : null}
+          <Text style={styles.selectedCount}>Избранное: {favoriteCount}</Text>
           {filtersActive ? (
             <Pressable onPress={resetFilters} hitSlop={8} accessibilityRole="button">
               <Text style={styles.action}>сбросить</Text>
@@ -140,8 +181,18 @@ export function CatalogScreen({ onOpen }: CatalogScreenProps) {
         </View>
       </View>
 
-      {searchActive && hasMore ? (
-        <Pressable onPress={loadAll} accessibilityRole="button" style={styles.hint}>
+      {searchActive && loadingMore ? (
+        <View style={styles.hint}>
+          <Text style={styles.hintText}>Догружаем справочник, чтобы искать по всем записям…</Text>
+        </View>
+      ) : null}
+
+      {searchActive && hasMore && !loadingMore ? (
+        <Pressable
+          onPress={loadAll}
+          disabled={isFetching}
+          accessibilityRole="button"
+          style={styles.hint}>
           <Text style={styles.hintText}>
             Поиск идёт по загруженным записям. Нажмите, чтобы загрузить весь справочник.
           </Text>
@@ -164,8 +215,12 @@ export function CatalogScreen({ onOpen }: CatalogScreenProps) {
       return (
         <View style={styles.state}>
           <Text style={styles.stateTitle}>Не удалось загрузить справочник</Text>
-          <Text style={styles.stateText}>{describeApiError(error)}</Text>
-          <Pressable onPress={retry} accessibilityRole="button" style={styles.primaryButton}>
+          <Text style={styles.stateText}>{errorMessage ?? 'Неизвестная ошибка.'}</Text>
+          <Pressable
+            onPress={retry}
+            disabled={isFetching}
+            accessibilityRole="button"
+            style={[styles.primaryButton, isFetching && styles.buttonDisabled]}>
             <Text style={styles.primaryButtonText}>Повторить</Text>
           </Pressable>
           <Pressable onPress={useDemoData} accessibilityRole="button" hitSlop={8}>
@@ -185,7 +240,11 @@ export function CatalogScreen({ onOpen }: CatalogScreenProps) {
             : 'В выбранном регионе записей нет.'}
         </Text>
         {hasMore ? (
-          <Pressable onPress={loadAll} accessibilityRole="button" style={styles.primaryButton}>
+          <Pressable
+            onPress={loadAll}
+            disabled={isFetching}
+            accessibilityRole="button"
+            style={styles.primaryButton}>
             <Text style={styles.primaryButtonText}>Загрузить весь справочник</Text>
           </Pressable>
         ) : null}
@@ -211,8 +270,8 @@ export function CatalogScreen({ onOpen }: CatalogScreenProps) {
     if (moreError !== null) {
       return (
         <View style={styles.footer}>
-          <Text style={styles.footerText}>{describeApiError(moreError)}</Text>
-          <Pressable onPress={loadMore} accessibilityRole="button" hitSlop={8}>
+          <Text style={styles.footerText}>{moreError}</Text>
+          <Pressable onPress={loadMore} disabled={isFetching} accessibilityRole="button" hitSlop={8}>
             <Text style={styles.action}>Повторить загрузку</Text>
           </Pressable>
         </View>
@@ -222,7 +281,7 @@ export function CatalogScreen({ onOpen }: CatalogScreenProps) {
     if (hasMore) {
       return (
         <View style={styles.footer}>
-          <Pressable onPress={loadMore} accessibilityRole="button" hitSlop={8}>
+          <Pressable onPress={loadMore} disabled={isFetching} accessibilityRole="button" hitSlop={8}>
             <Text style={styles.action}>Показать ещё</Text>
           </Pressable>
         </View>
@@ -252,7 +311,7 @@ export function CatalogScreen({ onOpen }: CatalogScreenProps) {
       ListEmptyComponent={listEmpty}
       ListFooterComponent={footer}
       ItemSeparatorComponent={Separator}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       onScroll={handleScroll}
@@ -284,6 +343,24 @@ const styles = StyleSheet.create({
   },
   tagline: {
     fontSize: 15,
+    color: colors.textMuted,
+  },
+  serviceNote: {
+    gap: spacing.xs,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+  },
+  serviceTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  serviceText: {
+    fontSize: 13,
+    lineHeight: 18,
     color: colors.textMuted,
   },
   demo: {
@@ -382,6 +459,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
   primaryButtonText: {
     color: colors.surface,
